@@ -5,6 +5,9 @@ name: build-windows-exe
 # 前提：本 workflow 需位于【仓库根目录】的 .github/workflows/ 下；
 #       若 bluekit 是仓库根，路径已正确；若 bluekit 是子目录，把下面各处 bluekit\ 前缀补上。
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:

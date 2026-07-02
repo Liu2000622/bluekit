@@ -1,4 +1,4 @@
-# -*- mode: python ; coding: python -*-
+# -*- mode: python ; coding: utf-8 -*-
 # PyInstaller 打包配置 —— Windows 64 位 / onedir。
 # 在 Windows x64 上执行： pyinstaller build\bluekit.spec
 #

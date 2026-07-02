@@ -17,6 +17,7 @@ ACCENT_HOVER = "#1d4ed8"
 ACCENT_SOFT = "#e8efff"
 HEADER_BG = "#1e293b"   # 顶栏深色
 HEADER_SUB = "#93c5fd"
+SIDEBAR_BG = "#182233"  # 侧边导航（比顶栏略深，形成层次）
 CONSOLE_BG = "#1e1e1e"  # 输出台
 CONSOLE_FG = "#d4d4d4"
 
@@ -114,4 +115,22 @@ def apply_theme(root: tk.Tk) -> ttk.Style:
     # 状态栏
     st.configure("Status.TLabel", background="#e3e7ed", foreground=MUTED,
                  padding=(10, 5), font=(UI_FAMILY, SIZE - 1))
+
+    # 侧边导航
+    st.configure("Sidebar.TFrame", background=SIDEBAR_BG)
+    st.configure("Nav.TButton", background=SIDEBAR_BG, foreground="#c3cede",
+                 relief="flat", borderwidth=0, padding=(20, 12), anchor="w",
+                 font=(UI_FAMILY, SIZE))
+    st.map("Nav.TButton",
+           background=[("active", "#26344a"), ("pressed", "#26344a")],
+           foreground=[("active", "#ffffff")])
+    st.configure("NavActive.TButton", background=ACCENT, foreground="#ffffff",
+                 relief="flat", borderwidth=0, padding=(20, 12), anchor="w",
+                 font=(UI_FAMILY, SIZE, "bold"))
+    st.map("NavActive.TButton",
+           background=[("active", ACCENT_HOVER), ("pressed", ACCENT_HOVER)],
+           foreground=[("active", "#ffffff")])
+    st.configure("Accent.TFrame", background=ACCENT)
+    st.configure("SidebarTitle.TLabel", background=SIDEBAR_BG, foreground="#5f6b7f",
+                 font=(UI_FAMILY, SIZE - 2, "bold"))
     return st

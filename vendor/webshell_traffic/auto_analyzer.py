@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """自动识别 + 插件化多类型分析调度引擎。"""
+from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass, field

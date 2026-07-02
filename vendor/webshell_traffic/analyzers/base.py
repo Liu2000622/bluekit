@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """统一分析器插件接口。"""
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

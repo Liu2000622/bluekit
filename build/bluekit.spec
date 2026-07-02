@@ -9,6 +9,11 @@
 # 依赖（WebShell 流量分析 Tab 需要）：scapy / pycryptodome / openpyxl
 #   打包前： pip install pyinstaller scapy pycryptodome openpyxl
 #
+# 本 spec 同时用于两条构建腿（见 .github/workflows/build-windows.yml）：
+#   常规版  Python 3.11 + 最新 PyInstaller（Win 8.1/10/11）
+#   Win7 版 Python 3.8 + PyInstaller 5.13.2 + Wireshark 3.6.x（Win7 SP1；
+#           5.x 的 onedir 没有 _internal 子目录、文件平铺在 exe 旁，同样正常）
+#
 # 内嵌资源（运行时解到临时目录，core/paths.py 通过 sys._MEIPASS 定位）：
 #   third_party\tshark\tshark.exe   Wireshark 引擎（fetch-tshark.ps1 填充）
 #   third_party\cfr.jar             反编译器

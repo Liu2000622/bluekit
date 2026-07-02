@@ -15,6 +15,7 @@ Webshell 流量分析 —— 统一命令行入口。
 
 图形界面仍可通过 `python main.py` 启动，二者共用同一套底层逻辑。
 """
+from __future__ import annotations
 
 import argparse
 import sys

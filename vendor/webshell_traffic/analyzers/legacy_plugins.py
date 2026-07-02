@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """现有 suo5 / 哥斯拉 / 冰蝎分析器的插件适配层。"""
+from __future__ import annotations
 
 import base64
 import binascii

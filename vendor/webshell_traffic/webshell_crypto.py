@@ -22,6 +22,7 @@ AlphabugX/godzilla_decode、ba0gu0/behinder-decryptor、s1rius/webshell_pcap_dec
     - 响应体前后各有 16 个字符的 md5 标记（md5(pass+key) 的两半），解密前需剥离
     （旧实现只用一种 AES/CBC 且把前 16 字节当 IV、XOR 用 key[i%16]、且不做 gzip，全部解不出真实流量）
 """
+from __future__ import annotations
 
 import base64
 import binascii

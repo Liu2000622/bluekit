@@ -2,8 +2,12 @@ name: build-windows-exe
 
 # 在云端 Windows x64 runner 上自动打包 BlueKit.exe，无需本地 Windows 机器。
 # 触发：手动运行(workflow_dispatch) 或 打 v* tag。
-# 前提：本 workflow 需位于【仓库根目录】的 .github/workflows/ 下；
-#       若 bluekit 是仓库根，路径已正确；若 bluekit 是子目录，把下面各处 bluekit\ 前缀补上。
+# 矩阵两条腿：
+#   win10 —— Python 3.11 + 最新 PyInstaller + choco 最新版 Wireshark（Win 8.1/10/11）
+#   win7  —— Python 3.8  + PyInstaller 5.13.2 + Wireshark 3.6.24（最后支持 Win7 的组合）
+#           Python 3.9+ 的 python3xx.dll 依赖 Win8+ 的系统 API set，Win7 上加载必失败，
+#           所以 Win7 用户必须用这条腿的产物。
+# 前提：本 workflow 需位于【仓库根目录】的 .github/workflows/ 下。
 
 permissions:
   contents: write
@@ -21,23 +25,39 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: win10
+            python: "3.11"
+            pyinstaller: "pyinstaller"
+            wireshark: ""            # 空 = choco 最新版
+            appdir: BlueKit
+            zip: BlueKit-windows-x64.zip
+          - flavor: win7
+            python: "3.8"
+            pyinstaller: "pyinstaller==5.13.2"
+            wireshark: "3.6.24"      # 3.6.x 是最后支持 Win7 的 Wireshark 分支
+            appdir: BlueKit-win7
+            zip: BlueKit-win7-x64.zip
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python 3.11 x64
+      - name: Setup Python ${{ matrix.python }} x64
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "${{ matrix.python }}"
           architecture: "x64"
 
       - name: Install deps + PyInstaller
-        run: pip install pyinstaller scapy pycryptodome openpyxl
+        run: pip install "${{ matrix.pyinstaller }}" scapy pycryptodome openpyxl
         # WebShell 流量分析 Tab 需要 scapy/pycryptodome/openpyxl；其余 Tab 纯标准库
 
       - name: Fetch & embed tshark (Wireshark 引擎)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.bundle_tshark }}
         shell: pwsh
-        run: pwsh build\fetch-tshark.ps1
+        run: pwsh build\fetch-tshark.ps1 -Version "${{ matrix.wireshark }}"
         # 把 tshark 填进 third_party\tshark\，随后 PyInstaller 按 spec 自动内嵌
 
       - name: Build exe (PyInstaller)
@@ -53,18 +73,54 @@ jobs:
         shell: pwsh
         run: |
           if (!(Test-Path dist\BlueKit\BlueKit.exe)) { throw "dist\BlueKit\BlueKit.exe 未生成" }
-          Compress-Archive -Path dist\BlueKit -DestinationPath BlueKit-windows-x64.zip -Force
-          "打包完成: {0:N1} MB" -f ((Get-Item BlueKit-windows-x64.zip).Length/1MB)
+          if ("${{ matrix.flavor }}" -eq "win7") {
+          $note = @"
+          BlueKit Win7 兼容版（Python 3.8 运行时）
+          =========================================
+          适用：Windows 7 SP1 及以上（Win 8.1/10/11 请优先用常规版 BlueKit-windows-x64.zip）。
+
+          使用：完整解压本 zip，进入文件夹双击 BlueKit.exe。
+          不要把 BlueKit.exe 单独拖出文件夹（会报 python dll 找不到）。
+
+          Win7 需要的系统更新（缺少会报 api-ms-win-*.dll / 无法启动）：
+          - Service Pack 1
+          - KB2533623（安全 DLL 加载）
+          - KB2999226（Universal C Runtime）
+          "@
+          ($note -split "`n" | ForEach-Object { $_.TrimStart() }) -join "`r`n" |
+            Out-File -Encoding utf8 dist\BlueKit\Win7说明.txt
+          }
+          if ("${{ matrix.appdir }}" -ne "BlueKit") { Rename-Item dist\BlueKit "${{ matrix.appdir }}" }
+          Compress-Archive -Path "dist\${{ matrix.appdir }}" -DestinationPath "${{ matrix.zip }}" -Force
+          "打包完成: {0:N1} MB" -f ((Get-Item "${{ matrix.zip }}").Length/1MB)
 
       - name: Upload artifact (文件夹 zip)
         uses: actions/upload-artifact@v4
         with:
-          name: BlueKit-windows-x64
-          path: BlueKit-windows-x64.zip
+          name: "BlueKit-${{ matrix.flavor }}-x64"
+          path: "${{ matrix.zip }}"
           retention-days: 30
 
-      - name: Attach to Release (仅 tag 触发)
-        if: startsWith(github.ref, 'refs/tags/')
+  release:
+    # 仅 tag 触发：两条腿都打包成功后，把两个 zip 一起挂到 Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Attach to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: BlueKit-windows-x64.zip
+          files: |
+            BlueKit-windows-x64.zip
+            BlueKit-win7-x64.zip
+          body: |
+            | 下载 | 适用系统 |
+            | --- | --- |
+            | `BlueKit-windows-x64.zip` | Windows 8.1 / 10 / 11（推荐） |
+            | `BlueKit-win7-x64.zip` | Windows 7 SP1（Python 3.8 兼容构建） |
+
+            解压整个文件夹后进入文件夹双击 `BlueKit.exe`，不要把 exe 单独拖出来。

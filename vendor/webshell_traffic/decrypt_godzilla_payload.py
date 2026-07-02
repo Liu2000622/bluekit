@@ -9,6 +9,7 @@
   - PHP/ASP：base64/raw -> XOR(key[(i+1)&15]) -> gzip/明文；ASP 另有 Base64/RAW 明文形态
 crypter 参数保留以兼容旧调用，实际加密器由引擎自动判定。
 """
+from __future__ import annotations
 
 import argparse
 

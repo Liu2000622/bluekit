@@ -9,6 +9,7 @@
 
 report_writer 依据 is_valid_target_flow 将记录分流到「原始解密结果」或「过滤/失败明细」。
 """
+from __future__ import annotations
 
 import hashlib
 import json

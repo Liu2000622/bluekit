@@ -12,6 +12,7 @@ PCAP / TCP 流处理公共工具。
   - split_http_message              : 切分 HTTP 头部/报文体
   - iter_pcap_packets               : 流式逐包读取，支持进度回调与取消
 """
+from __future__ import annotations
 
 from collections import defaultdict, OrderedDict, namedtuple
 

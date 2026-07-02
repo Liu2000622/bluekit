@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """分析器插件注册入口。"""
+from __future__ import annotations
 
 from analyzers.additional_plugins import (
     AntSwordPlugin,

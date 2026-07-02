@@ -11,6 +11,7 @@ suo5 通过 HTTP(POST，多为 chunked 长连接) 建立全双工 TCP 隧道：
 本模块只保留「协议原语 + 特征研判 + 分层还原」，识别/解密/报告统一走
 auto_analyzer 引擎与 Suo5Plugin，避免与自动分析维护两套逻辑。
 """
+from __future__ import annotations
 
 import argparse
 import base64

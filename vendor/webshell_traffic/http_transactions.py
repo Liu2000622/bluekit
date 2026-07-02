@@ -14,6 +14,7 @@
 非 HTTP 流（如 suo5 二进制隧道）切不出消息时返回空列表，调用方可回退到旧的
 按方向拼接路径。
 """
+from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass, field

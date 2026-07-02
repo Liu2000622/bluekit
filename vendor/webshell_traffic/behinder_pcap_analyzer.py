@@ -7,6 +7,7 @@
 与「自动分析」共用同一套核心逻辑；密钥 = md5(连接密码)[:16]，加密器
 （XOR/AES、raw/base64、json/image/magic 传输）由引擎自动判定。
 """
+from __future__ import annotations
 
 import argparse
 import sys

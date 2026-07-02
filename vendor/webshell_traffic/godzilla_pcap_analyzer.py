@@ -7,6 +7,7 @@
 与「自动分析」共用同一套核心逻辑；加密器（AES/XOR、raw/base64、C#/ASP 变体）
 由引擎自动判定，crypter 参数仅作向后兼容。
 """
+from __future__ import annotations
 
 import argparse
 import sys

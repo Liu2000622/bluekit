@@ -12,6 +12,7 @@ AnalysisRecord.primary_text() 做正则匹配，填充：
   - 不覆盖原始解密内容（request/response/content 保持不变）；
   - 只标注有效目标流量（is_valid_target_flow=True），过滤/失败记录不参与。
 """
+from __future__ import annotations
 
 import os
 import re

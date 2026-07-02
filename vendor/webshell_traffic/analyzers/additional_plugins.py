@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """新增 webshell / HTTP/TCP 隧道插件。"""
+from __future__ import annotations
 
 import base64
 import binascii

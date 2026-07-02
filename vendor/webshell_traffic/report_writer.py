@@ -11,6 +11,7 @@ Sheet 顺序（便于应急研判，从结论到明细）：
 
 依据 AnalysisRecord.is_valid_target_flow 分流；风险字段由 rule_engine 预先标注。
 """
+from __future__ import annotations
 
 import os
 import re

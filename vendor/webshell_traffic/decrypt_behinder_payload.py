@@ -10,6 +10,7 @@
 
 不再依赖旧版并不存在的「动态密钥握手」假设，直接以连接密码解密。
 """
+from __future__ import annotations
 
 import argparse
 import base64

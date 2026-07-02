@@ -1,9 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller 打包配置 —— Windows 64 位 / 单文件(onefile)。
+# PyInstaller 打包配置 —— Windows 64 位 / 文件夹(onedir)。
 # 在 Windows x64 上执行： pyinstaller build\bluekit.spec
 #
-# 单文件：产物就一个 dist\BlueKit.exe，双击即用，无需带 _internal 文件夹。
-#   代价：首次/每次启动会先解压到临时目录，比 onedir 略慢几秒；exe 较大(~180MB+)。
+# 文件夹版：产物 dist\BlueKit\（BlueKit.exe + _internal\）。秒开（无需每次解压）。
+#   分发：整个 BlueKit 文件夹打包成 zip，解压后进文件夹双击 BlueKit.exe，
+#   ★ 不要把 BlueKit.exe 单独拖出来（会报 python311.dll 找不到）。
 #
 # 依赖（WebShell 流量分析 Tab 需要）：scapy / pycryptodome / openpyxl
 #   打包前： pip install pyinstaller scapy pycryptodome openpyxl
@@ -49,25 +50,32 @@ a = Analysis(
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-# 单文件：把 binaries/datas/zipfiles 全塞进 EXE，不用 COLLECT
+# 文件夹版：EXE 只放启动器，资源由 COLLECT 收进 _internal\
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='BlueKit',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,               # GUI 程序，不弹黑框
     disable_windowed_traceback=False,
     target_arch='x86_64',        # Windows 64 位
     codesign_identity=None,
     entitlements_file=None,
     icon='..\\build\\bluekit.ico',
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='BlueKit',
 )

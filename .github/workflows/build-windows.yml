@@ -49,21 +49,22 @@ jobs:
         run: |
           python -c "import sys; sys.path.insert(0,'.'); from core import codec,deser,filetype,tshark,webshell,crypto_aes; assert crypto_aes.selftest(); print('core OK, AES selftest PASS')"
 
-      - name: Verify single-file exe
+      - name: Package folder into zip
         shell: pwsh
         run: |
-          if (!(Test-Path dist\BlueKit.exe)) { throw "dist\BlueKit.exe 未生成" }
-          "BlueKit.exe 大小: {0:N1} MB" -f ((Get-Item dist\BlueKit.exe).Length/1MB)
+          if (!(Test-Path dist\BlueKit\BlueKit.exe)) { throw "dist\BlueKit\BlueKit.exe 未生成" }
+          Compress-Archive -Path dist\BlueKit -DestinationPath BlueKit-windows-x64.zip -Force
+          "打包完成: {0:N1} MB" -f ((Get-Item BlueKit-windows-x64.zip).Length/1MB)
 
-      - name: Upload artifact (单文件 exe)
+      - name: Upload artifact (文件夹 zip)
         uses: actions/upload-artifact@v4
         with:
           name: BlueKit-windows-x64
-          path: dist\BlueKit.exe
+          path: BlueKit-windows-x64.zip
           retention-days: 30
 
       - name: Attach to Release (仅 tag 触发)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist\BlueKit.exe
+          files: BlueKit-windows-x64.zip

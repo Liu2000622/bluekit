@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+build_test/
+dist/
+dist_test/
+build/*.toc
+*.spec.bak
+result/
+.DS_Store
+.pytest_cache/
+# 大二进制不进仓库（CI 会自动获取）；cfr.jar 保留
+third_party/tshark/*
+!third_party/tshark/README.txt

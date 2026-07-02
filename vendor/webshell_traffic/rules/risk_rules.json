@@ -1,0 +1,168 @@
+{
+  "version": "1.0",
+  "description": "Webshell 流量攻击行为识别规则库。匹配解密后的明文（命令/请求/响应），用于风险标注与研判。规则可自由增删，引擎不硬编码规则内容。",
+  "rules": [
+    {
+      "id": "ENV_RECON",
+      "name": "系统环境探测",
+      "risk_level": "low",
+      "behavior": "环境探测",
+      "patterns": ["\\buname\\b", "systeminfo", "\\bhostname\\b", "ipconfig", "ifconfig", "lsb_release", "\\bver\\b", "/proc/version"],
+      "description": "获取操作系统、主机名、网络配置等基础环境信息",
+      "recommendation": "确认是否为攻击者入侵后的信息收集阶段"
+    },
+    {
+      "id": "ACCOUNT_RECON",
+      "name": "账号与权限探测",
+      "risk_level": "medium",
+      "behavior": "账号与权限探测",
+      "patterns": ["\\bwhoami\\b", "\\bid\\b", "net\\s+user", "net\\s+localgroup", "query\\s+user", "\\bgroups\\b", "cat\\s+/etc/passwd"],
+      "description": "探测当前用户身份、组、系统账号",
+      "recommendation": "结合上下文判断攻击者是否在评估权限以便提权或横向"
+    },
+    {
+      "id": "FILE_READ_SENSITIVE",
+      "name": "敏感文件读取",
+      "risk_level": "high",
+      "behavior": "文件读取",
+      "patterns": ["/etc/shadow", "cat\\s+/etc/passwd", "/root/\\.ssh", "web\\.config", "\\.bash_history", "id_rsa", "wp-config\\.php"],
+      "description": "读取密码文件、密钥、配置等敏感文件",
+      "recommendation": "高度可疑，确认是否发生凭据/密钥泄露"
+    },
+    {
+      "id": "FILE_WRITE",
+      "name": "文件写入/落地",
+      "risk_level": "medium",
+      "behavior": "文件写入",
+      "patterns": ["file_put_contents", "fwrite\\s*\\(", "Set-Content", "echo\\s+.+>\\s*\\S+\\.(php|jsp|asp|aspx|sh)", ">\\s*\\S+\\.(php|jsp|aspx)"],
+      "description": "向磁盘写入文件，可能为植入 webshell 或恶意脚本",
+      "recommendation": "确认写入的文件是否为二次 webshell 或后门"
+    },
+    {
+      "id": "FILE_UPLOAD",
+      "name": "文件上传",
+      "risk_level": "medium",
+      "behavior": "文件上传",
+      "patterns": ["move_uploaded_file", "multipart/form-data", "\\bupload\\b"],
+      "description": "上传文件到目标服务器",
+      "recommendation": "核对上传内容，是否为工具/后门落地"
+    },
+    {
+      "id": "FILE_DOWNLOAD",
+      "name": "文件下载/外传",
+      "risk_level": "medium",
+      "behavior": "文件下载",
+      "patterns": ["\\bdownload\\b", "readfile\\s*\\(", "Get-Content\\s+.+-Raw"],
+      "description": "下载或读取文件内容用于外传",
+      "recommendation": "确认是否发生数据外传"
+    },
+    {
+      "id": "CMD_EXEC",
+      "name": "命令执行",
+      "risk_level": "high",
+      "behavior": "命令执行",
+      "patterns": ["shell_exec\\s*\\(", "passthru\\s*\\(", "system\\s*\\(", "popen\\s*\\(", "proc_open", "Runtime\\.getRuntime", "ProcessBuilder", "cmd\\.exe\\s+/c", "/bin/sh\\s+-c"],
+      "description": "通过 webshell 执行系统命令",
+      "recommendation": "核实执行的具体命令与影响"
+    },
+    {
+      "id": "NET_OUTBOUND",
+      "name": "网络外联下载",
+      "risk_level": "high",
+      "behavior": "网络外联",
+      "patterns": ["wget\\s+https?://", "curl\\s+https?://", "certutil\\s+-urlcache", "Invoke-WebRequest", "bitsadmin\\s+/transfer", "powershell.+DownloadString"],
+      "description": "从外部地址下载文件（常为后续载荷/工具）",
+      "recommendation": "追踪外联地址，确认下载的载荷"
+    },
+    {
+      "id": "REVERSE_SHELL",
+      "name": "反弹 Shell",
+      "risk_level": "high",
+      "behavior": "反连行为",
+      "patterns": ["bash\\s+-i", "nc\\s+-e", "/dev/tcp/", "mkfifo.+nc", "socket\\.socket.+connect", "Invoke-Shell", "sh\\s+-i\\s+>&"],
+      "description": "建立反向连接，回连攻击者控制端",
+      "recommendation": "确认回连 IP/端口，隔离受害主机"
+    },
+    {
+      "id": "DB_OPERATION",
+      "name": "数据库操作",
+      "risk_level": "medium",
+      "behavior": "数据库操作",
+      "patterns": ["select\\s+.+\\s+from\\s+", "information_schema", "union\\s+select", "drop\\s+table", "mysql\\s+-u", "\\bsqlmap\\b"],
+      "description": "查询或操作数据库，可能为数据窃取",
+      "recommendation": "确认是否发生敏感数据查询/导出"
+    },
+    {
+      "id": "PRIV_ESC",
+      "name": "权限提升迹象",
+      "risk_level": "high",
+      "behavior": "权限提升迹象",
+      "patterns": ["net\\s+localgroup\\s+administrators\\s+.+/add", "SeImpersonate", "\\bgetsystem\\b", "/etc/sudoers", "chmod\\s+\\+s", "pkexec"],
+      "description": "尝试获取更高权限",
+      "recommendation": "高危，确认提权是否成功"
+    },
+    {
+      "id": "CREDENTIAL_ACCESS",
+      "name": "凭据窃取",
+      "risk_level": "high",
+      "behavior": "凭据相关操作",
+      "patterns": ["mimikatz", "sekurlsa", "\\blsass\\b", "hashdump", "reg\\s+save.+sam", "procdump.+lsass", "\\bLaZagne\\b"],
+      "description": "转储或窃取系统凭据/哈希",
+      "recommendation": "极高危，立即修改相关凭据"
+    },
+    {
+      "id": "LATERAL_MOVEMENT",
+      "name": "横向移动迹象",
+      "risk_level": "high",
+      "behavior": "横向移动迹象",
+      "patterns": ["\\bpsexec\\b", "wmic\\s+/node", "net\\s+use\\s+\\\\\\\\", "Invoke-Command\\s+-ComputerName", "ssh\\s+\\w+@"],
+      "description": "向内网其他主机移动",
+      "recommendation": "排查内网其他受影响主机"
+    },
+    {
+      "id": "PERSISTENCE",
+      "name": "持久化迹象",
+      "risk_level": "high",
+      "behavior": "持久化迹象",
+      "patterns": ["crontab", "schtasks\\s+/create", "systemctl\\s+enable", "rc\\.local", "/etc/init\\.d/", "reg\\s+add.+\\\\Run", "New-Service"],
+      "description": "建立持久化机制以维持访问",
+      "recommendation": "清除持久化项，排查计划任务/服务/自启"
+    },
+    {
+      "id": "ANTI_FORENSICS",
+      "name": "清理痕迹",
+      "risk_level": "high",
+      "behavior": "清理痕迹",
+      "patterns": ["history\\s+-c", "rm\\s+-rf\\s+", "del\\s+/[fq]", "wevtutil\\s+cl", ">\\s*/var/log/", "\\bshred\\b", "unset\\s+HISTFILE"],
+      "description": "删除日志或命令历史以掩盖行为",
+      "recommendation": "确认被清理的日志范围，评估取证影响"
+    },
+    {
+      "id": "OBFUSCATION",
+      "name": "编码/混淆执行",
+      "risk_level": "high",
+      "behavior": "其他可疑行为",
+      "patterns": ["base64\\s+-d", "powershell\\s+-e(nc|ncodedcommand)?\\b", "FromBase64String", "gzinflate\\s*\\(", "str_rot13", "\\bassert\\s*\\(", "eval\\s*\\(base64"],
+      "description": "使用编码/混淆手段隐藏真实指令",
+      "recommendation": "解码后还原真实意图"
+    },
+    {
+      "id": "WEBSHELL_PHP_EVAL",
+      "name": "PHP Webshell 执行结构",
+      "risk_level": "high",
+      "behavior": "Webshell 控制",
+      "patterns": ["@?eval\\s*\\(", "@?assert\\s*\\(", "base64_decode\\s*\\(", "set_time_limit\\s*\\(", "ini_set\\s*\\("],
+      "description": "菜刀/蚁剑/weevely 等 PHP Webshell 常见执行结构",
+      "recommendation": "结合 URI 与请求来源确认 Webshell 控制行为"
+    },
+    {
+      "id": "HTTP_TUNNEL_CONTROL",
+      "name": "HTTP 隧道控制",
+      "risk_level": "medium",
+      "behavior": "HTTP 隧道",
+      "patterns": ["cmd=(connect|read|forward|disconnect)", "x-cmd", "x-target", "x-port", "regeorg", "neoreg"],
+      "description": "reGeorg/Neo-reGeorg 等 HTTP 隧道控制流量",
+      "recommendation": "确认目标地址和端口，排查是否存在内网代理/横向通道"
+    }
+  ]
+}

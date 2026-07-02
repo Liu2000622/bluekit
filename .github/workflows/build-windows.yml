@@ -1,0 +1,64 @@
+name: build-windows-exe
+
+# 在云端 Windows x64 runner 上自动打包 BlueKit.exe，无需本地 Windows 机器。
+# 触发：手动运行(workflow_dispatch) 或 打 v* tag。
+# 前提：本 workflow 需位于【仓库根目录】的 .github/workflows/ 下；
+#       若 bluekit 是仓库根，路径已正确；若 bluekit 是子目录，把下面各处 bluekit\ 前缀补上。
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_tshark:
+        description: "随包内嵌 portable tshark（Wireshark 引擎，自包含离线）"
+        type: boolean
+        default: true
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11 x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: "x64"
+
+      - name: Install deps + PyInstaller
+        run: pip install pyinstaller scapy pycryptodome openpyxl
+        # WebShell 流量分析 Tab 需要 scapy/pycryptodome/openpyxl；其余 Tab 纯标准库
+
+      - name: Fetch & embed tshark (Wireshark 引擎)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.bundle_tshark }}
+        shell: pwsh
+        run: pwsh build\fetch-tshark.ps1
+        # 把 tshark 填进 third_party\tshark\，随后 PyInstaller 按 spec 自动内嵌
+
+      - name: Build exe (PyInstaller)
+        run: pyinstaller build\bluekit.spec
+        # spec 已把 third_party\tshark 整目录打入包内，无需打包后再拷贝
+
+      - name: Smoke test (import 检查)
+        shell: pwsh
+        run: |
+          python -c "import sys; sys.path.insert(0,'.'); from core import codec,deser,filetype,tshark,webshell,crypto_aes; assert crypto_aes.selftest(); print('core OK, AES selftest PASS')"
+
+      - name: Zip package
+        shell: pwsh
+        run: Compress-Archive -Path dist\BlueKit\* -DestinationPath BlueKit-windows-x64.zip -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlueKit-windows-x64
+          path: BlueKit-windows-x64.zip
+          retention-days: 30
+
+      - name: Attach to Release (仅 tag 触发)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlueKit-windows-x64.zip

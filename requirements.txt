@@ -1,0 +1,12 @@
+# BlueKit 依赖
+#
+# 核心 GUI 与大部分 Tab（访问日志/编解码/反序列化/文件头/反编译/WebShell解密/
+# 流量分析-Wireshark）均为纯标准库，无需安装任何包。
+#
+# 仅「WebShell 流量分析」Tab（pcap 全自动分析引擎）需要以下第三方库：
+scapy>=2.6.1          # PCAP 解析 / TCP 流重组
+pycryptodome>=3.20.0  # AES/XOR 等解密（import 名为 Crypto）
+openpyxl>=3.1.0       # 生成 Excel 报告
+
+# 打包 Windows exe 时额外需要：
+# pyinstaller>=6.6.0

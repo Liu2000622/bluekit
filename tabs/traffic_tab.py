@@ -1,6 +1,7 @@
-"""流量分析 Tab —— Wireshark 式界面：过滤器构造表单 + 数据包表格 + 统计。"""
+"""流量分析 Tab —— 导入即自动解析、默认展示全部、按条件过滤、可取消过滤。"""
 from __future__ import annotations
 
+import re
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -8,98 +9,80 @@ from tkinter import filedialog, messagebox, ttk
 from core import tshark
 from tabs.common import labeled_entry, make_output, primary_button, set_text
 
+_ALERT_RE = re.compile(
+    r"union\s+select|/bin/|cmd\.exe|/etc/passwd|\.\./|<script|"
+    r"\$\{jndi:|base64_decode|whoami|eval\(", re.I)
+
 
 def build(nb) -> tuple[ttk.Frame, str]:
-    frame = ttk.Frame(nb, padding=6)
+    frame = ttk.Frame(nb, padding=8)
+    state = {"pcap": None}
+    row_streams: dict = {}
 
-    # ---------- 引擎状态 ----------
+    # ---- 引擎状态 ----
     bin_ = tshark.find_tshark()
     ver = ""
     try:
         ver = tshark.version() if bin_ else ""
     except Exception:
         ver = ""
-    txt = (f"引擎: {ver}" if bin_
-           else "⚠️ 未找到 tshark —— 打包时会自动内嵌；本机调试可装 Wireshark 或设 BLUEKIT_TSHARK")
-    ttk.Label(frame, text=txt, foreground=("#2a7" if bin_ else "#c22")).pack(anchor="w")
+    ttk.Label(frame,
+              text=(f"引擎: {ver}" if bin_ else
+                    "⚠️ 未找到 tshark（打包版已内置；源码调试请装 Wireshark 或设 BLUEKIT_TSHARK）"),
+              foreground=("#2a7" if bin_ else "#c22")).pack(anchor="w")
 
-    # ---------- 文件选择 ----------
+    # ---- 文件选择（选中即自动解析）----
     top = ttk.Frame(frame)
-    top.pack(fill="x", pady=(4, 2))
-    row, pcap_var = labeled_entry(top, "PCAP：", "", width=52)
+    top.pack(fill="x", pady=(6, 2))
+    row, pcap_var = labeled_entry(top, "PCAP：", "", width=50)
     row.pack(side="left", fill="x", expand=True)
+    open_btn = ttk.Button(top, text="导入 pcap")
+    open_btn.pack(side="left", padx=2)
 
-    def pick():
-        p = filedialog.askopenfilename(
-            title="选择 pcap/pcapng",
-            filetypes=[("抓包文件", "*.pcap *.pcapng *.cap"), ("所有文件", "*.*")])
-        if p:
-            pcap_var.set(p)
-
-    ttk.Button(top, text="选文件", command=pick).pack(side="left", padx=2)
-
-    # ---------- 过滤器构造表单 ----------
-    form = ttk.LabelFrame(frame, text="过滤器构造（填字段自动生成 Wireshark 过滤器，无需记命令）", padding=6)
+    # ---- 过滤器构造表单 ----
+    form = ttk.LabelFrame(frame, text="过滤条件（填好点「应用过滤」；点「显示全部」取消过滤）", padding=6)
     form.pack(fill="x", pady=4)
-
     r1 = ttk.Frame(form)
     r1.pack(fill="x")
-    _r, src_var = labeled_entry(r1, "源IP:", "", width=15)
+    _r, src_var = labeled_entry(r1, "源IP:", "", width=14)
     _r.pack(side="left")
-    _r, dst_var = labeled_entry(r1, "目的IP:", "", width=15)
+    _r, dst_var = labeled_entry(r1, "目的IP:", "", width=14)
     _r.pack(side="left", padx=6)
     ttk.Label(r1, text="协议:").pack(side="left")
     proto_var = tk.StringVar(value="")
-    ttk.Combobox(r1, textvariable=proto_var, width=8, state="normal",
+    ttk.Combobox(r1, textvariable=proto_var, width=7,
                  values=["", "http", "dns", "tcp", "udp", "tls", "mysql",
                          "redis", "icmp", "ftp", "smtp"]).pack(side="left", padx=2)
-    _r, port_var = labeled_entry(r1, "端口:", "", width=7)
+    _r, port_var = labeled_entry(r1, "端口:", "", width=6)
     _r.pack(side="left", padx=6)
 
     r2 = ttk.Frame(form)
     r2.pack(fill="x", pady=(4, 0))
-    _r, url_var = labeled_entry(r2, "URL(域名/路径):", "", width=24)
+    _r, url_var = labeled_entry(r2, "URL(域名/路径):", "", width=22)
     _r.pack(side="left")
-    _r, contains_var = labeled_entry(r2, "包含关键字:", "", width=18)
-    _r.pack(side="left", padx=(8, 0))
-    ttk.Label(r2, text="预设:").pack(side="left", padx=(8, 0))
+    _r, contains_var = labeled_entry(r2, "关键字:", "", width=16)
+    _r.pack(side="left", padx=6)
+    ttk.Label(r2, text="预设:").pack(side="left")
     preset_var = tk.StringVar(value="全部")
-    preset_cb = ttk.Combobox(r2, textvariable=preset_var, width=22, state="readonly",
+    preset_cb = ttk.Combobox(r2, textvariable=preset_var, width=18, state="readonly",
                              values=[p[0] for p in tshark.FILTER_PRESETS])
     preset_cb.pack(side="left", padx=2)
 
-    # 生效的 display filter（可手改）
     r3 = ttk.Frame(form)
     r3.pack(fill="x", pady=(4, 0))
-    _r, filt_var = labeled_entry(r3, "display filter:", "", width=60)
+    _r, filt_var = labeled_entry(r3, "display filter:", "", width=58)
     _r.pack(side="left", fill="x", expand=True)
 
-    def apply_form(*_):
-        f = tshark.build_filter(src_var.get(), dst_var.get(), proto_var.get(),
-                                port_var.get(), contains_var.get(), url_var.get())
-        filt_var.set(f)
-
-    def apply_preset(*_):
-        for name, expr in tshark.FILTER_PRESETS:
-            if name == preset_var.get():
-                filt_var.set(expr)
-                return
-
-    ttk.Button(r2, text="↧ 用表单生成", command=apply_form).pack(side="left", padx=6)
-    preset_cb.bind("<<ComboboxSelected>>", apply_preset)
-
-    # ---------- 数据包表格（Treeview）----------
+    # ---- 数据包表格 ----
     mid = ttk.Frame(frame)
     mid.pack(fill="both", expand=True, pady=4)
-
     cols = tshark.PACKET_COLUMNS
-    tree = ttk.Treeview(mid, columns=cols, show="headings", height=14)
+    tree = ttk.Treeview(mid, columns=cols, show="headings", height=13)
     widths = {"No.": 60, "Time": 90, "Source": 130, "Dest": 130,
               "Proto": 70, "Len": 60, "Info": 480}
     for c in cols:
         tree.heading(c, text=c)
-        tree.column(c, width=widths.get(c, 100),
-                    anchor="w", stretch=(c == "Info"))
+        tree.column(c, width=widths.get(c, 100), anchor="w", stretch=(c == "Info"))
     tree.tag_configure("odd", background="#f6f8fb")
     tree.tag_configure("even", background="#ffffff")
     tree.tag_configure("alert", background="#fde8e8", foreground="#b91c1c")
@@ -112,57 +95,96 @@ def build(nb) -> tuple[ttk.Frame, str]:
     mid.rowconfigure(0, weight=1)
     mid.columnconfigure(0, weight=1)
 
-    row_streams: dict[str, str] = {}   # item_id -> tcp.stream
+    # ---- 按钮条 ----
+    bar = ttk.Frame(frame)
+    bar.pack(fill="x")
 
-    # ---------- 底部：详情/统计输出 ----------
+    # ---- 详情/统计输出 ----
     out = make_output(frame)
-    out.configure(height=8)
+    out.configure(height=7)
 
-    def _need():
-        p = pcap_var.get().strip()
+    # ================= 逻辑 =================
+    def load_packets(display_filter=""):
+        p = state.get("pcap")
         if not p:
-            set_text(out, "请先选择 pcap 文件。")
-            return None
-        return p
-
-    def load_packets():
-        p = _need()
-        if not p:
+            set_text(out, "请先导入 pcap 文件。")
             return
         tree.delete(*tree.get_children())
         row_streams.clear()
-        set_text(out, "加载数据包中…")
+        set_text(out, "解析中…" if not display_filter else f"按过滤器加载：{display_filter}")
 
         def worker():
             try:
-                rows, streams, truncated = tshark.packet_rows(p, filt_var.get(), limit=2000)
+                rows, streams, truncated = tshark.packet_rows(p, display_filter, limit=3000)
             except Exception as e:  # noqa: BLE001
                 frame.after(0, lambda: set_text(out, f"[错误] {e}"))
                 return
 
             def fill():
-                import re
-                alert_re = re.compile(
-                    r"union\s+select|/bin/|cmd\.exe|/etc/passwd|\.\./|<script|"
-                    r"\$\{jndi:|base64_decode|whoami|eval\(", re.I)
                 for i, (r, st) in enumerate(zip(rows, streams)):
                     info = r[6] if len(r) > 6 else ""
-                    tag = "alert" if alert_re.search(info) else ("odd" if i % 2 else "even")
+                    tag = "alert" if _ALERT_RE.search(info) else ("odd" if i % 2 else "even")
                     iid = tree.insert("", "end", values=r, tags=(tag,))
                     row_streams[iid] = st
-                msg = f"共 {len(rows)} 个包" + ("（已截断到 2000，用过滤器缩小范围）" if truncated else "")
-                msg += "  ·  双击某行可追踪其 TCP 流"
+                scope = "全部" if not display_filter else f"过滤: {display_filter}"
+                msg = f"共 {len(rows)} 个包（{scope}）"
+                if truncated:
+                    msg += "  ·  已截断到 3000，用过滤条件缩小范围"
+                msg += "  ·  双击某行可追踪其 TCP 流  ·  可疑包已标红"
                 set_text(out, msg)
             frame.after(0, fill)
-
         threading.Thread(target=worker, daemon=True).start()
+
+    def do_import():
+        p = filedialog.askopenfilename(
+            title="导入 pcap/pcapng",
+            filetypes=[("抓包文件", "*.pcap *.pcapng *.cap"), ("所有文件", "*.*")])
+        if not p:
+            return
+        pcap_var.set(p)
+        state["pcap"] = p
+        # 清空过滤条件，导入即自动解析并展示全部
+        for v in (src_var, dst_var, proto_var, port_var, url_var, contains_var, filt_var):
+            v.set("")
+        preset_var.set("全部")
+        load_packets("")
+
+    def current_filter():
+        # 优先用 display filter 框；为空则按表单字段拼
+        f = filt_var.get().strip()
+        if f:
+            return f
+        return tshark.build_filter(src_var.get(), dst_var.get(), proto_var.get(),
+                                   port_var.get(), contains_var.get(), url_var.get())
+
+    def apply_filter():
+        if not state.get("pcap"):
+            set_text(out, "请先导入 pcap 文件。")
+            return
+        f = current_filter()
+        filt_var.set(f)   # 回填，便于查看/微调
+        load_packets(f)
+
+    def show_all():
+        for v in (src_var, dst_var, proto_var, port_var, url_var, contains_var, filt_var):
+            v.set("")
+        preset_var.set("全部")
+        load_packets("")
+
+    def apply_preset(_evt=None):
+        for name, expr in tshark.FILTER_PRESETS:
+            if name == preset_var.get():
+                filt_var.set(expr)
+                if state.get("pcap"):
+                    load_packets(expr)
+                return
 
     def on_double(_evt):
         sel = tree.focus()
         if not sel:
             return
         st = row_streams.get(sel, "")
-        p = pcap_var.get().strip()
+        p = state.get("pcap")
         if not p:
             return
         if st == "":
@@ -178,41 +200,39 @@ def build(nb) -> tuple[ttk.Frame, str]:
             frame.after(0, lambda: set_text(out, res))
         threading.Thread(target=worker, daemon=True).start()
 
-    tree.bind("<Double-1>", on_double)
-
-    # ---------- 操作按钮条 ----------
-    bar = ttk.Frame(frame)
-    bar.pack(fill="x")
-
     def stat(fn, msg):
-        p = _need()
-        if not p:
+        if not state.get("pcap"):
+            set_text(out, "请先导入 pcap 文件。")
             return
         set_text(out, msg)
 
         def worker():
             try:
-                res = fn(p)
+                res = fn(state["pcap"])
             except Exception as e:  # noqa: BLE001
                 res = f"[错误] {e}"
             frame.after(0, lambda: set_text(out, res))
         threading.Thread(target=worker, daemon=True).start()
 
-    primary_button(bar, "▶ 加载数据包", load_packets).pack(side="left", padx=3)
-    ttk.Button(bar, text="协议分层", command=lambda: stat(tshark.protocol_hierarchy, "统计协议分层…")).pack(side="left", padx=3)
-    ttk.Button(bar, text="会话统计", command=lambda: stat(tshark.conversations, "统计会话…")).pack(side="left", padx=3)
-    ttk.Button(bar, text="HTTP 请求", command=lambda: stat(tshark.http_requests, "提取 HTTP 请求…")).pack(side="left", padx=3)
-
     def open_ws():
-        p = _need()
-        if not p:
+        if not state.get("pcap"):
+            set_text(out, "请先导入 pcap 文件。")
             return
-        if not tshark.open_in_wireshark(p):
+        if not tshark.open_in_wireshark(state["pcap"]):
             messagebox.showwarning("Wireshark", "未找到 Wireshark GUI。")
 
+    # ---- 连线 ----
+    open_btn.configure(command=do_import)
+    preset_cb.bind("<<ComboboxSelected>>", apply_preset)
+    tree.bind("<Double-1>", on_double)
+    primary_button(bar, "🔍 应用过滤", apply_filter).pack(side="left", padx=3)
+    ttk.Button(bar, text="✖ 显示全部", command=show_all).pack(side="left", padx=3)
+    ttk.Button(bar, text="协议分层", command=lambda: stat(tshark.protocol_hierarchy, "统计协议分层…")).pack(side="left", padx=3)
+    ttk.Button(bar, text="HTTP 请求", command=lambda: stat(tshark.http_requests, "提取 HTTP 请求…")).pack(side="left", padx=3)
+    ttk.Button(bar, text="会话统计", command=lambda: stat(tshark.conversations, "统计会话…")).pack(side="left", padx=3)
     ttk.Button(bar, text="在 Wireshark 打开", command=open_ws).pack(side="left", padx=3)
 
-    ttk.Label(frame, text="详情 / 统计 / 追踪流：").pack(anchor="w", pady=(4, 0))
-    out.pack(fill="both", expand=False)
-    set_text(out, "用法：选 pcap → （可选）填过滤器表单或选预设 → 加载数据包 → 双击行追踪 TCP 流。")
+    set_text(out, "点「导入 pcap」选择抓包文件 → 自动解析并展示全部数据包。\n"
+                  "填过滤条件（源/目的IP、协议、端口、URL、关键字）或选预设 → 「🔍 应用过滤」。\n"
+                  "「✖ 显示全部」取消过滤。双击数据包行追踪其 TCP 流。")
     return frame, "流量分析(Wireshark)"

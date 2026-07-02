@@ -44,7 +44,11 @@ def find_tshark() -> str | None:
 
 
 def find_wireshark_gui() -> str | None:
-    """定位 Wireshark GUI，用于"在 Wireshark 中打开"。"""
+    """定位 Wireshark GUI，用于"在 Wireshark 中打开"。优先用随包内嵌的。"""
+    exe = "Wireshark.exe" if os.name == "nt" else "Wireshark"
+    bundled = find_resource(os.path.join("third_party", "tshark", exe))
+    if bundled:
+        return bundled
     if os.name == "nt":
         for p in (r"C:\Program Files\Wireshark\Wireshark.exe",
                   r"C:\Program Files (x86)\Wireshark\Wireshark.exe"):
@@ -69,9 +73,13 @@ def _run(args: list[str], timeout: int = 120) -> str:
             "未找到 tshark。请把 portable Wireshark 放到 "
             "third_party/tshark/，或安装 Wireshark，或设置环境变量 BLUEKIT_TSHARK。")
     cmd = [bin_] + args
+    # PyInstaller 无控制台窗口下：避免弹黑框、补 stdin，防止部分子命令异常
+    creationflags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW
     try:
         p = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=timeout, errors="replace")
+                           timeout=timeout, errors="replace",
+                           stdin=subprocess.DEVNULL,
+                           creationflags=creationflags)
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"tshark 超时（>{timeout}s）")
     if p.returncode != 0 and not p.stdout:
@@ -207,5 +215,14 @@ def open_in_wireshark(pcap: str) -> bool:
     gui = find_wireshark_gui()
     if not gui:
         return False
-    subprocess.Popen([gui, "-r", pcap])
+    kw = {}
+    if os.name == "nt":
+        kw["creationflags"] = 0x08000000  # CREATE_NO_WINDOW（GUI 自己开窗）
+    subprocess.Popen([gui, "-r", pcap], stdin=subprocess.DEVNULL, **kw)
     return True
+
+
+def bundled_wireshark() -> bool:
+    """是否用的是随包内嵌的 Wireshark（而非本地安装）。"""
+    exe = "Wireshark.exe" if os.name == "nt" else "Wireshark"
+    return bool(find_resource(os.path.join("third_party", "tshark", exe)))

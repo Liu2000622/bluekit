@@ -179,16 +179,18 @@ def build(nb) -> tuple[ttk.Frame, str]:
                     load_packets(expr)
                 return
 
-    def on_double(_evt):
-        sel = tree.focus()
-        if not sel:
-            return
-        st = row_streams.get(sel, "")
+    def follow_selected():
         p = state.get("pcap")
         if not p:
+            set_text(out, "请先导入 pcap 文件。")
             return
+        sel = tree.focus()
+        if not sel:
+            set_text(out, "请先在上面表格里选中一个数据包，再点「追踪选中流」（或双击行）。")
+            return
+        st = row_streams.get(sel, "")
         if st == "":
-            set_text(out, "该包不属于 TCP 流。")
+            set_text(out, "该包不属于 TCP 流，无法追踪。")
             return
         set_text(out, f"追踪 TCP 流 {st} 中…")
 
@@ -199,6 +201,9 @@ def build(nb) -> tuple[ttk.Frame, str]:
                 res = f"[错误] {e}"
             frame.after(0, lambda: set_text(out, res))
         threading.Thread(target=worker, daemon=True).start()
+
+    def on_double(_evt):
+        follow_selected()
 
     def stat(fn, msg):
         if not state.get("pcap"):
@@ -227,10 +232,12 @@ def build(nb) -> tuple[ttk.Frame, str]:
     tree.bind("<Double-1>", on_double)
     primary_button(bar, "🔍 应用过滤", apply_filter).pack(side="left", padx=3)
     ttk.Button(bar, text="✖ 显示全部", command=show_all).pack(side="left", padx=3)
+    ttk.Button(bar, text="追踪选中流", command=follow_selected).pack(side="left", padx=3)
     ttk.Button(bar, text="协议分层", command=lambda: stat(tshark.protocol_hierarchy, "统计协议分层…")).pack(side="left", padx=3)
     ttk.Button(bar, text="HTTP 请求", command=lambda: stat(tshark.http_requests, "提取 HTTP 请求…")).pack(side="left", padx=3)
     ttk.Button(bar, text="会话统计", command=lambda: stat(tshark.conversations, "统计会话…")).pack(side="left", padx=3)
-    ttk.Button(bar, text="在 Wireshark 打开", command=open_ws).pack(side="left", padx=3)
+    ws_label = "在 Wireshark 打开（随包）" if tshark.bundled_wireshark() else "在 Wireshark 打开（本地）"
+    ttk.Button(bar, text=ws_label, command=open_ws).pack(side="left", padx=3)
 
     set_text(out, "点「导入 pcap」选择抓包文件 → 自动解析并展示全部数据包。\n"
                   "填过滤条件（源/目的IP、协议、端口、URL、关键字）或选预设 → 「🔍 应用过滤」。\n"

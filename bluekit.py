@@ -29,7 +29,7 @@ from core.theme import apply_theme
 from tabs import (accesslog_tab, codec_tab, deser_tab, traffic_tab,
                   utils_tab, webshell_tab, wstraffic_tab)
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 
 def main():

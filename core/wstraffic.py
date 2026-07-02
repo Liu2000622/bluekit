@@ -47,6 +47,48 @@ def analyze(pcap: str, out_xlsx: str | None = None,
     return result, log
 
 
+# 哥斯拉加密器选项（与原版一致）
+GODZILLA_CRYPTERS = ["AES_BASE64 (V4 Default)", "XOR_BASE64 (V3 Default)",
+                     "PHP_EVAL_XOR_BASE64"]
+
+
+def manual_decrypt(tool: str, payload: str, key: str = "", crypter: str = "") -> str:
+    """手动载荷解密（原版同源函数）。tool: suo5 / godzilla / behinder。"""
+    _ensure_path()
+    if tool == "suo5":
+        from decrypt_suo5_payload import decrypt_hex_string
+        return decrypt_hex_string(payload)
+    if tool == "godzilla":
+        from decrypt_godzilla_payload import godzilla_decode
+        return godzilla_decode(payload, key, crypter)
+    if tool == "behinder":
+        from decrypt_behinder_payload import behinder_decode
+        return behinder_decode(payload.strip(), key or "rebeyond")
+    raise ValueError(f"未知工具: {tool}")
+
+
+def pcap_analyze(tool: str, input_path: str, output_path: str,
+                 password: str = "", key: str = "", crypter: str = ""):
+    """针对指定工具的 PCAP 专项分析（原版同源函数），返回 (result, log)。"""
+    _ensure_path()
+    log: list[str] = []
+    cb = lambda m: log.append(str(m))  # noqa: E731
+    if tool == "suo5":
+        from suo5_full_analyzer import process_pcap_to_excel
+        res = process_pcap_to_excel(input_path, output_path, status_callback=cb)
+    elif tool == "godzilla":
+        from godzilla_pcap_analyzer import process_godzilla_pcap
+        res = process_godzilla_pcap(input_path, output_path, key,
+                                    crypter=crypter, status_callback=cb)
+    elif tool == "behinder":
+        from behinder_pcap_analyzer import process_behinder_pcap
+        res = process_behinder_pcap(input_path, output_path, password,
+                                    status_callback=cb)
+    else:
+        raise ValueError(f"未知工具: {tool}")
+    return res, log
+
+
 def _fmt_record(r) -> str:
     parts = [f"[{getattr(r, 'risk_level', '')}] {getattr(r, 'analyzer', '')}"]
     cip = getattr(r, "client_ip", None) or getattr(r, "src_ip", None) or ""

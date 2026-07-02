@@ -34,6 +34,8 @@ a = Analysis(
         ('..\\vendor\\webshell_traffic', 'vendor\\webshell_traffic'),
         ('..\\third_party\\cfr.jar', 'third_party'),
         ('..\\third_party\\tshark', 'third_party\\tshark'),
+        ('..\\build\\bluekit.ico', '.'),
+        ('..\\build\\bluekit-preview.png', '.'),
     ] + _datas,
     hiddenimports=['accesslog_analyzer'] + _hidden,
     hookspath=[],
@@ -67,5 +69,5 @@ exe = EXE(
     target_arch='x86_64',        # Windows 64 位
     codesign_identity=None,
     entitlements_file=None,
-    # icon='..\\build\\bluekit.ico',
+    icon='..\\build\\bluekit.ico',
 )

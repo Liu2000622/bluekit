@@ -32,12 +32,32 @@ from tabs import (accesslog_tab, codec_tab, deser_tab, traffic_tab,
 VERSION = "0.4.0"
 
 
+def _set_window_icon(root):
+    """设置窗口图标：Windows 用 .ico，其它平台尽力用 png。"""
+    from core.paths import find_resource
+    ico = find_resource("bluekit.ico")
+    try:
+        if ico and sys.platform.startswith("win"):
+            root.iconbitmap(ico)
+            return
+    except tk.TclError:
+        pass
+    png = find_resource("build/bluekit-preview.png") or find_resource("bluekit-preview.png")
+    try:
+        if png:
+            root._icon_img = tk.PhotoImage(file=png)
+            root.iconphoto(True, root._icon_img)
+    except tk.TclError:
+        pass
+
+
 def main():
     root = tk.Tk()
     root.title(f"BlueKit 蓝队离线研判工具 v{VERSION}")
     root.geometry("1080x720")
     root.minsize(920, 600)
     apply_theme(root)
+    _set_window_icon(root)
 
     # ---- 顶部标题栏 ----
     header = ttk.Frame(root, style="Header.TFrame", padding=(20, 14))
@@ -46,13 +66,16 @@ def main():
     ttk.Label(header, text="蓝队离线研判工具  ·  纯离线 · 本机运行 · 无外网",
               style="HeaderSub.TLabel").pack(side="left", padx=14, pady=(10, 0))
     ttk.Label(header, text=f"v{VERSION}", style="HeaderSub.TLabel").pack(side="right", pady=(10, 0))
+    ttk.Label(header, text="Powered by 领个羊  ·", style="HeaderSub.TLabel").pack(
+        side="right", padx=(0, 10), pady=(10, 0))
     # 顶栏下的一条 accent 分隔线
     ttk.Frame(root, style="Accent.TFrame", height=2).pack(fill="x")
 
     # ---- 底部状态栏 ----
     status = ttk.Label(
         root, anchor="w", style="Status.TLabel",
-        text="纯标准库 · 无外网请求   |   流量分析: 内嵌 tshark   |   反编译: java + cfr.jar")
+        text="纯标准库 · 无外网请求   |   流量分析: 内嵌 tshark   |   反编译: java + cfr.jar"
+             "        Powered by 领个羊")
     status.pack(fill="x", side="bottom")
 
     # ---- 主体：左侧导航 + 右侧内容 ----

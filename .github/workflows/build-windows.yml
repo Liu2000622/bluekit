@@ -33,14 +33,14 @@ jobs:
             python: "3.11"
             pyinstaller: "pyinstaller"
             wireshark: ""            # 空 = choco 最新版
-            appdir: BlueKit
-            zip: BlueKit-windows-x64.zip
+            setupname: BlueKit-windows-x64-setup
+            minver: "6.3"            # 安装程序拒绝在 Win8.1 以下运行, 防止 Win7 用户装错
           - flavor: win7
             python: "3.8"
             pyinstaller: "pyinstaller==5.13.2"
             wireshark: "3.6.24"      # 3.6.x 是最后支持 Win7 的 Wireshark 分支
-            appdir: BlueKit-win7
-            zip: BlueKit-win7-x64.zip
+            setupname: BlueKit-win7-x64-setup
+            minver: "6.1sp1"         # Win7 SP1 起
     steps:
       - uses: actions/checkout@v4
 
@@ -69,7 +69,7 @@ jobs:
         run: |
           python -c "import sys; sys.path.insert(0,'.'); from core import codec,deser,filetype,tshark,webshell,crypto_aes; assert crypto_aes.selftest(); print('core OK, AES selftest PASS')"
 
-      - name: Package folder into zip
+      - name: Build installer (Inno Setup)
         shell: pwsh
         run: |
           if (!(Test-Path dist\BlueKit\BlueKit.exe)) { throw "dist\BlueKit\BlueKit.exe 未生成" }
@@ -77,36 +77,36 @@ jobs:
           $note = @"
           BlueKit Win7 兼容版（Python 3.8 运行时）
           =========================================
-          适用：Windows 7 SP1 及以上（Win 8.1/10/11 请优先用常规版 BlueKit-windows-x64.zip）。
-
-          使用：完整解压本 zip（解压后应有约 4000 个文件），进入文件夹双击 BlueKit.exe。
-          不要把 BlueKit.exe 单独拖出文件夹，也不要在压缩包里直接双击运行。
-          若启动报"No module named ..."，说明解压不完整或文件被杀毒软件隔离，
-          请解压到较短路径（如 C:\BlueKit\）并将文件夹加入杀软白名单后重新解压。
+          适用：Windows 7 SP1 及以上（Win 8.1/10/11 请优先用常规版 BlueKit-windows-x64-setup.exe）。
 
           Win7 需要的系统更新（缺少会报 api-ms-win-*.dll / 无法启动）：
           - Service Pack 1
           - KB2533623（安全 DLL 加载）
           - KB2999226（Universal C Runtime）
           "@
-          # 文件名必须纯 ASCII：Win7 时代解压工具不认 zip 的 UTF-8 文件名标志，
-          # 中文文件名会导致部分工具解压中断、产物残缺
           ($note -split "`n" | ForEach-Object { $_.TrimStart() }) -join "`r`n" |
             Out-File -Encoding utf8BOM dist\BlueKit\README-Win7.txt
           }
-          if ("${{ matrix.appdir }}" -ne "BlueKit") { Rename-Item dist\BlueKit "${{ matrix.appdir }}" }
-          Compress-Archive -Path "dist\${{ matrix.appdir }}" -DestinationPath "${{ matrix.zip }}" -Force
-          "打包完成: {0:N1} MB" -f ((Get-Item "${{ matrix.zip }}").Length/1MB)
+          $ver = "${{ github.ref_name }}" -replace '^v',''
+          if ($ver -notmatch '^\d') { $ver = "0.0.0" }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            /DAppVersion=$ver `
+            /DOutputName="${{ matrix.setupname }}" `
+            /DMinVer="${{ matrix.minver }}" `
+            "/O$((Get-Location).Path)" `
+            build\bluekit.iss
+          if (!(Test-Path "${{ matrix.setupname }}.exe")) { throw "安装程序未生成" }
+          "安装程序: {0:N1} MB" -f ((Get-Item "${{ matrix.setupname }}.exe").Length/1MB)
 
-      - name: Upload artifact (文件夹 zip)
+      - name: Upload artifact (安装程序)
         uses: actions/upload-artifact@v4
         with:
           name: "BlueKit-${{ matrix.flavor }}-x64"
-          path: "${{ matrix.zip }}"
+          path: "${{ matrix.setupname }}.exe"
           retention-days: 30
 
   release:
-    # 仅 tag 触发：两条腿都打包成功后，把两个 zip 一起挂到 Release
+    # 仅 tag 触发：两条腿都打包成功后，把两个安装程序一起挂到 Release
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
@@ -119,12 +119,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            BlueKit-windows-x64.zip
-            BlueKit-win7-x64.zip
+            BlueKit-windows-x64-setup.exe
+            BlueKit-win7-x64-setup.exe
           body: |
             | 下载 | 适用系统 |
             | --- | --- |
-            | `BlueKit-windows-x64.zip` | Windows 8.1 / 10 / 11（推荐） |
-            | `BlueKit-win7-x64.zip` | Windows 7 SP1（Python 3.8 兼容构建） |
+            | `BlueKit-windows-x64-setup.exe` | Windows 8.1 / 10 / 11（推荐） |
+            | `BlueKit-win7-x64-setup.exe` | Windows 7 SP1（Python 3.8 兼容构建） |
 
-            解压整个文件夹后进入文件夹双击 `BlueKit.exe`，不要把 exe 单独拖出来。
+            双击安装（默认装到用户目录，无需管理员权限），装完桌面快捷方式直接用；
+            升级时直接安装新版即可，会自动替换旧版。装错系统版本时安装程序会拒绝并提示。

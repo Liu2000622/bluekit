@@ -35,9 +35,11 @@ python3 bluekit.py
 
 **打 Windows exe（两种方式）：**
 - **本地 Windows：** 见 `build/BUILD-WINDOWS.md`（PyInstaller 不能跨平台，exe 必须在 Windows x64 上打）。
-- **云端自动出包（无需 Windows 机器）：** 把项目推到 GitHub，`.github/workflows/build-windows.yml` 会在 Windows runner 上自动装 Wireshark、打包、内嵌 tshark，产出两个 zip 作为 artifact；打 `v*` tag 还会自动挂到 Release：
-  - `BlueKit-windows-x64.zip` —— Windows 8.1/10/11（Python 3.11 运行时，推荐）
-  - `BlueKit-win7-x64.zip` —— Windows 7 SP1 兼容版（Python 3.8 + Wireshark 3.6.24 + PyInstaller 5.13.2；Python 3.9+ 的 `python3xx.dll` 依赖 Win8+ 系统组件，在 Win7 上无法加载，Win7 用户必须用这个包）
+- **云端自动出包（无需 Windows 机器）：** 把项目推到 GitHub，`.github/workflows/build-windows.yml` 会在 Windows runner 上自动装 Wireshark、打包、内嵌 tshark、编译成 Inno Setup 安装程序；打 `v*` tag 自动挂到 Release：
+  - `BlueKit-windows-x64-setup.exe` —— Windows 8.1/10/11（Python 3.11 运行时，推荐）
+  - `BlueKit-win7-x64-setup.exe` —— Windows 7 SP1 兼容版（Python 3.8 + Wireshark 3.6.24 + PyInstaller 5.13.2；Python 3.9+ 的 `python3xx.dll` 依赖 Win8+ 系统组件，在 Win7 上无法加载，Win7 用户必须用这个包）
+
+  双击安装即用（默认装到用户目录、无需管理员权限，自动创建桌面快捷方式），不再需要手动解压 zip。
 
 ## 目录结构
 

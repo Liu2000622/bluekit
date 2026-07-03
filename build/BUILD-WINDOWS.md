@@ -79,7 +79,7 @@ python bluekit.py
 ## 5. Win7 兼容包（Python 3.8 构建）
 
 Python 3.9+ 的运行时 dll 在 Windows 7 上无法加载，Win7 用户必须用 **Python 3.8** 构建的包。
-CI 已内置这条腿（产物 `BlueKit-win7-x64.zip`）；本地手工打的话：
+CI 已内置这条腿（产物 `BlueKit-win7-x64-setup.exe`）；本地手工打的话：
 
 - 装 **Python 3.8.10 x64**（最后一个带 Win 安装包的 3.8）
 - `pip install pyinstaller==5.13.2 scapy pycryptodome openpyxl`
@@ -90,8 +90,21 @@ CI 已内置这条腿（产物 `BlueKit-win7-x64.zip`）；本地手工打的话
 
 目标 Win7 机器需要：SP1 + KB2533623（安全 DLL 加载）+ KB2999226（UCRT）。
 
-## 6. GitHub Actions 自动出包
+## 6. 打安装程序（Inno Setup）
 
-推到 GitHub 后 `.github/workflows/build-windows.yml` 自动在 Windows runner 上出两个包：
-`BlueKit-windows-x64.zip`（Py3.11，Win 8.1+）和 `BlueKit-win7-x64.zip`（Py3.8，Win7 SP1+）。
+分发形态是安装程序而非 zip（避免用户解压不完整/拖出 exe/杀软隔离等问题）。
+本地打（先完成上面的 PyInstaller 步骤，装 [Inno Setup 6](https://jrsoftware.org/isinfo.php)）：
+
+```powershell
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=0.5.0 `
+    /DOutputName=BlueKit-windows-x64-setup /DMinVer=6.3 build\bluekit.iss
+# Win7 版把 MinVer 换成 6.1sp1、OutputName 换成 BlueKit-win7-x64-setup
+```
+
+安装程序默认装到用户目录（无需管理员），升级时自动先卸载旧版，防止新旧运行时文件混杂。
+
+## 7. GitHub Actions 自动出包
+
+推到 GitHub 后 `.github/workflows/build-windows.yml` 自动在 Windows runner 上出两个安装程序：
+`BlueKit-windows-x64-setup.exe`（Py3.11，Win 8.1+）和 `BlueKit-win7-x64-setup.exe`（Py3.8，Win7 SP1+）。
 打 `v*` tag 会自动挂到 Release。

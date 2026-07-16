@@ -77,7 +77,7 @@ bluekit/
 
 ## 版本
 
-- **v0.4.0** —— WebShell 流量分析引擎升级到 `Webshell_traffic_analysis_tool` 最新版（vendored 为 `wsat` 包，与 BlueKit 自身 `core/` 命名空间隔离）：新增 DNS 隧道检测、TLS 解密(RSA/KeyLog)、JA3/HASSH 指纹、威胁情报 IOC 命中、HTTP/2 与 WebSocket 重组，输出 Excel + HTML 双报告。Win7(Python 3.8) / Win10+(Python 3.11) 两条构建腿同步升级（引擎经校验为 Python 3.8 兼容）。
+- **v0.6.0** —— WebShell 流量分析引擎升级到 `Webshell_traffic_analysis_tool` 最新版（vendored 为 `wsat` 包，与 BlueKit 自身 `core/` 命名空间隔离）：新增 DNS 隧道检测、TLS 解密(RSA/KeyLog)、JA3/HASSH 指纹、威胁情报 IOC 命中、HTTP/2 与 WebSocket 重组，输出 Excel + HTML 双报告。Win7(Python 3.8) / Win10+(Python 3.11) 两条构建腿同步升级（引擎经校验为 Python 3.8 兼容）。
 - **v0.3.0** —— 集成 WebShell 流量(pcap)全自动分析引擎（新 Tab）；工具箱支持 jar/war 整包反编译 + 恶意特征定位；UI 统一美化。
 - **v0.2.0** —— WebShell 手工解密 Tab（自研纯 Python AES，FIPS-197 通过）；GitHub Actions 云端出 exe。
 - **v0.1.0** —— 首版 MVP：访问日志分析 / 流量分析(Wireshark) / 编解码 / 反序列化 / 工具箱。

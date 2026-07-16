@@ -64,10 +64,15 @@ jobs:
         run: pyinstaller build\bluekit.spec
         # spec 已把 third_party\tshark 整目录打入包内，无需打包后再拷贝
 
-      - name: Smoke test (import 检查)
+      - name: Smoke test (import + 打包产物检查)
         shell: pwsh
         run: |
-          python -c "import sys; sys.path.insert(0,'.'); from core import codec,deser,filetype,tshark,webshell,crypto_aes; assert crypto_aes.selftest(); print('core OK, AES selftest PASS')"
+          # 1) 源码态:核心模块 + WebShell 流量分析引擎(wsat)可用性
+          python -c "import sys; sys.path.insert(0,'.'); from core import codec,deser,filetype,tshark,webshell,crypto_aes; assert crypto_aes.selftest(); from core import wstraffic; ok,msg=wstraffic.available(); assert ok, ('wstraffic 不可用: '+msg); print('core OK, AES PASS, wstraffic(wsat) OK')"
+          # 2) 打包态:确认 wsat 引擎确实进了 dist(防止 collect_submodules 收集为空导致的假绿)
+          $hit = Get-ChildItem dist\BlueKit -Recurse -Filter auto_analyzer.py -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $hit) { throw "dist 内未找到 wsat 引擎(auto_analyzer.py)——打包漏了 wsat" }
+          Write-Host "dist 内 wsat 引擎存在: $($hit.FullName)"
 
       - name: Build installer (Inno Setup)
         shell: pwsh

@@ -77,6 +77,7 @@ bluekit/
 
 ## 版本
 
+- **v0.6.1** —— 修复 v0.6.0 打包漏装 wsat 引擎导致「WebShell 流量分析」报 `No module named wsat`（win7/win10 均受影响）：spec 在 `collect_submodules('wsat')` 前把 `vendor\webshell_traffic` 注入 `sys.path`（否则收集为空），并把 wsat 源码树平铺进包作兜底；CI 冒烟测试增加 wsat 可用性与打包产物校验。
 - **v0.6.0** —— WebShell 流量分析引擎升级到 `Webshell_traffic_analysis_tool` 最新版（vendored 为 `wsat` 包，与 BlueKit 自身 `core/` 命名空间隔离）：新增 DNS 隧道检测、TLS 解密(RSA/KeyLog)、JA3/HASSH 指纹、威胁情报 IOC 命中、HTTP/2 与 WebSocket 重组，输出 Excel + HTML 双报告。Win7(Python 3.8) / Win10+(Python 3.11) 两条构建腿同步升级（引擎经校验为 Python 3.8 兼容）。
 - **v0.3.0** —— 集成 WebShell 流量(pcap)全自动分析引擎（新 Tab）；工具箱支持 jar/war 整包反编译 + 恶意特征定位；UI 统一美化。
 - **v0.2.0** —— WebShell 手工解密 Tab（自研纯 Python AES，FIPS-197 通过）；GitHub Actions 云端出 exe。

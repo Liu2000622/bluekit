@@ -23,9 +23,20 @@
 #                                   与 BlueKit 自身的 core\ 包互不冲突）
 #   vendor\accesslog_analyzer.py    访问日志引擎
 
+import os
+import sys as _sys
+
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
+
+# ★ 关键：collect_submodules 靠【当前进程 sys.path】查找包，而 Analysis 的 pathex
+#   只作用于 PyInstaller 的模块图搜索、不会加进这里的 sys.path。因此必须在调用
+#   collect_submodules('wsat') 之前，手动把 vendor\webshell_traffic 加到 sys.path，
+#   否则收集结果为空 → wsat 根本没编进包 → 运行时报 "No module named wsat"。
+_VENDOR = os.path.abspath(os.path.join(SPECPATH, '..', 'vendor', 'webshell_traffic'))
+if _VENDOR not in _sys.path:
+    _sys.path.insert(0, _VENDOR)
 
 _datas, _bins, _hidden = [], [], []
 for pkg in ("scapy", "Crypto", "openpyxl"):
@@ -40,7 +51,11 @@ for pkg in ("scapy", "Crypto", "openpyxl"):
 # 引擎在打包态用 sys._MEIPASS 定位资源，故规则/CFR 需落到 _MEIPASS 根：
 #   rules\risk_rules.json / rules\threat_intel.json  ← wsat\rules\
 #   tools\cfr.jar                                    ← wsat\tools\cfr.jar
-_hidden += collect_submodules('wsat')
+_wsat_mods = collect_submodules('wsat')
+if not _wsat_mods:
+    raise SystemExit("[bluekit.spec] collect_submodules('wsat') 为空——"
+                     "vendor\\webshell_traffic 未在 sys.path 上，wsat 不会被打包。")
+_hidden += _wsat_mods
 
 a = Analysis(
     ['..\\bluekit.py'],
@@ -48,6 +63,8 @@ a = Analysis(
     binaries=_bins,
     datas=[
         ('..\\vendor\\accesslog_analyzer.py', 'vendor'),
+        # wsat 源码树也平铺进包，作为运行时 sys.path import 的兜底（双保险）
+        ('..\\vendor\\webshell_traffic\\wsat', 'vendor\\webshell_traffic\\wsat'),
         ('..\\vendor\\webshell_traffic\\wsat\\rules', 'rules'),
         ('..\\vendor\\webshell_traffic\\wsat\\tools\\cfr.jar', 'tools'),
         ('..\\third_party\\cfr.jar', 'third_party'),

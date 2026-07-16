@@ -13,7 +13,7 @@
 |---|---|---|
 | **访问日志分析** | 集成 accesslog-analyzer：SQLi/XSS/RCE/Log4Shell 等载荷签名、扫描器 UA、异常/突发路径、高危 IP 排行 | 无 |
 | **流量分析(Wireshark)** | 内嵌 **tshark**（Wireshark 引擎）：过滤器构造表单 + 数据包表格 + URL 过滤 + 双击追踪 TCP 流 + 可疑包标红 + 一键“在 Wireshark 打开” | tshark |
-| **WebShell 流量分析** | 集成 pcap 全自动分析引擎：无需密钥自动识别并解密 suo5/哥斯拉/冰蝎/菜刀/蚁剑/Weevely/reGeorg 及 FRP/NPS/Chisel/CS/Meterpreter 等隧道与 C2，出 Excel 报告 | scapy·pycryptodome·openpyxl |
+| **WebShell 流量分析** | 集成 pcap 全自动分析引擎（vendored `wsat`）：无需密钥自动识别并解密 suo5/哥斯拉/冰蝎/菜刀/蚁剑/Weevely/reGeorg 及 FRP/NPS/Chisel/CS/Meterpreter 等隧道与 C2；新增 **DNS 隧道检测 · TLS 解密(RSA/KeyLog) · JA3/HASSH 指纹 · 威胁情报 IOC 命中 · HTTP/2 与 WebSocket 重组**，出 **Excel + HTML** 双报告 | scapy·pycryptodome·openpyxl |
 | **WebShell 解密** | 手工解密：冰蝎/哥斯拉（AES-ECB/XOR）、蚁剑（base64/rot13）、通用模式，gzip 自动解压 | 无（自研纯 Python AES） |
 | **编解码** | Base64/Hex/URL/Unicode/HTML/Gzip 编解码 + JWT 解码，均支持多重编码 | 无 |
 | **反序列化查看** | 识别 Java 序列化流(`AC ED 00 05`/`rO0AB`)、扫 ysoserial gadget 特征、抽类名 | 无 |
@@ -55,7 +55,9 @@ bluekit/
 │   └── decompile.py        #   CFR 反编译封装
 ├── tabs/                   # 各功能 Tab 的界面
 ├── vendor/
-│   └── accesslog_analyzer.py   # vendored 自研日志引擎（单文件）
+│   ├── accesslog_analyzer.py   # vendored 自研日志引擎（单文件）
+│   └── webshell_traffic/wsat/  # vendored WebShell 流量分析引擎（core/crypto/
+│                               #   webshell/report/analyzers 子包 + rules/ + tools/cfr.jar）
 ├── third_party/
 │   ├── cfr.jar             # 反编译器（已带）
 │   └── tshark/             # 放 portable tshark（见其 README.txt）
@@ -75,6 +77,7 @@ bluekit/
 
 ## 版本
 
+- **v0.6.0** —— WebShell 流量分析引擎升级到 `Webshell_traffic_analysis_tool` 最新版（vendored 为 `wsat` 包，与 BlueKit 自身 `core/` 命名空间隔离）：新增 DNS 隧道检测、TLS 解密(RSA/KeyLog)、JA3/HASSH 指纹、威胁情报 IOC 命中、HTTP/2 与 WebSocket 重组，输出 Excel + HTML 双报告。Win7(Python 3.8) / Win10+(Python 3.11) 两条构建腿同步升级（引擎经校验为 Python 3.8 兼容）。
 - **v0.3.0** —— 集成 WebShell 流量(pcap)全自动分析引擎（新 Tab）；工具箱支持 jar/war 整包反编译 + 恶意特征定位；UI 统一美化。
 - **v0.2.0** —— WebShell 手工解密 Tab（自研纯 Python AES，FIPS-197 通过）；GitHub Actions 云端出 exe。
 - **v0.1.0** —— 首版 MVP：访问日志分析 / 流量分析(Wireshark) / 编解码 / 反序列化 / 工具箱。

@@ -17,10 +17,13 @@
 # 内嵌资源（运行时解到临时目录，core/paths.py 通过 sys._MEIPASS 定位）：
 #   third_party\tshark\tshark.exe   Wireshark 引擎（fetch-tshark.ps1 填充）
 #   third_party\cfr.jar             反编译器
-#   vendor\webshell_traffic\...     WebShell 流量分析引擎 + 规则
+#   vendor\webshell_traffic\wsat\   WebShell 流量分析引擎（wsat 包，含 core/crypto/
+#                                   webshell/report/analyzers 子包 + rules\ 规则 +
+#                                   tools\cfr.jar；绝对 import 已改写为 wsat.* 前缀，
+#                                   与 BlueKit 自身的 core\ 包互不冲突）
 #   vendor\accesslog_analyzer.py    访问日志引擎
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
 
@@ -31,13 +34,22 @@ for pkg in ("scapy", "Crypto", "openpyxl"):
     _bins += b
     _hidden += h
 
+# WebShell 流量分析引擎（vendor\webshell_traffic\wsat 包）：整包编入 PYZ，
+# collect_submodules 会顺带把引擎用到的全部 stdlib/第三方依赖拉进图里，
+# 避免“仅作 datas 平铺、PyInstaller 不分析其 import”导致的运行时缺模块。
+# 引擎在打包态用 sys._MEIPASS 定位资源，故规则/CFR 需落到 _MEIPASS 根：
+#   rules\risk_rules.json / rules\threat_intel.json  ← wsat\rules\
+#   tools\cfr.jar                                    ← wsat\tools\cfr.jar
+_hidden += collect_submodules('wsat')
+
 a = Analysis(
     ['..\\bluekit.py'],
-    pathex=['..', '..\\vendor'],
+    pathex=['..', '..\\vendor', '..\\vendor\\webshell_traffic'],
     binaries=_bins,
     datas=[
         ('..\\vendor\\accesslog_analyzer.py', 'vendor'),
-        ('..\\vendor\\webshell_traffic', 'vendor\\webshell_traffic'),
+        ('..\\vendor\\webshell_traffic\\wsat\\rules', 'rules'),
+        ('..\\vendor\\webshell_traffic\\wsat\\tools\\cfr.jar', 'tools'),
         ('..\\third_party\\cfr.jar', 'third_party'),
         ('..\\third_party\\tshark', 'third_party\\tshark'),
         ('..\\build\\bluekit.ico', '.'),

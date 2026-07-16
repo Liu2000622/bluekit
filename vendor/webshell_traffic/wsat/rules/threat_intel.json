@@ -1,0 +1,47 @@
+{
+  "_comment": "威胁情报库，由 crypto/threat_intel.py 加载并合并进内置检测。四类规则：ja3/ja3s(32位md5)、ja4/ja4s(FoxIO 指纹串)、sni(TLS ClientHello 域名，精确或子域后缀匹配)、ip(对端 IP，精确匹配)。命中即告警。指纹填错只会漏配、绝不误报；sni/ip 为值型 IOC，正常由操作者按自有威胁 feed 维护。JA4 建议取自 FoxIO JA4+ DB(ja4db.com)，JA3 取自 abuse.ch SSLBL。ligolo-ng/Sliver/Havoc/Merlin 等 Go 系 C2 的 TLS 指纹随工具与 Go 版本漂移，请在本环境抓包实测后填入。",
+  "_sources": [
+    "https://sslbl.abuse.ch/ja3-fingerprints/",
+    "https://ja4db.com/"
+  ],
+  "ja3": {
+    "a0e9f5d64349fb13191bc781f81f42e1": "Cobalt Strike (默认 Malleable Profile)",
+    "72a589da586844d7f0818ce684948eea": "Metasploit / meterpreter (Java payload)",
+    "e7d705a3286e19ea42f587b344ee6865": "Metasploit (Ruby/openssl)"
+  },
+  "ja3s": {
+    "ec74a5c51106f0419184d0dd08fb05bc": "Cobalt Strike (默认自签服务端)"
+  },
+  "_ja4_note": "以下 JA4/JA4S 为 FoxIO JA4+ DB(ja4db.com / FoxIO-LLC/ja4 ja4plus-mapping.csv)公开核实值。注意：Go 系 C2(Sliver 等)的 JA4 与部分正常 Go 程序共享密码套件哈希，命中即人工复核；本工具只算 JA4/JA4S，JA4X(证书)/JA4H(HTTP)类指纹暂不覆盖。",
+  "ja4": {
+    "t13d190900_9dc949149365_97f8aa674fd9": "Sliver Agent (Go)",
+    "t13i190800_9dc949149365_97f8aa674fd9": "Sliver Agent (Go)",
+    "t12i190700_d83cc789557e_16bbda4055b2": "Cobalt Strike v4.9.1 beacon",
+    "t12i210700_76e208dd3e22_16bbda4055b2": "Cobalt Strike v4.9.1 beacon",
+    "t12d190800_d83cc789557e_16bbda4055b2": "Cobalt Strike v4.9.1 beacon",
+    "t12d210800_76e208dd3e22_16bbda4055b2": "Cobalt Strike v4.9.1 beacon",
+    "t13d201100_2b729b4bf6f3_9e7b989ebec8": "IcedID (恶意软件)",
+    "t13d880900_fcb5b95cb75a_b0d3b4ac2a14": "SoftEther VPN (隧道/pivot)",
+    "t13i880900_fcb5b95cb75a_b0d3b4ac2a14": "SoftEther VPN (隧道/pivot)"
+  },
+  "ja4s": {
+    "t130200_1301_a56c5b993250": "Sliver Agent 服务端 (Go)",
+    "t120300_c030_52d195ce1d92": "Cobalt Strike v4.9.1 服务端",
+    "t120300_c030_5e2616a54c73": "IcedID 服务端"
+  },
+  "_sni_note": "隧道即服务（tunnel-as-a-service）域名常被滥用于 C2 回连 / 数据外带，检测其 TLS SNI 是业界通行手法。以下为双用途服务，正常开发也可能使用——命中即人工复核，可按环境增删。",
+  "sni": {
+    "ngrok.io": "ngrok 隧道（常被滥用于 C2/外带）",
+    "ngrok-free.app": "ngrok 免费隧道（常被滥用于 C2/外带）",
+    "ngrok.app": "ngrok 隧道（常被滥用于 C2/外带）",
+    "trycloudflare.com": "Cloudflare 快速隧道（常被滥用于 C2/外带）",
+    "serveo.net": "serveo SSH 隧道（常被滥用于 C2/外带）",
+    "localtunnel.me": "localtunnel 隧道（常被滥用于 C2/外带）",
+    "loca.lt": "localtunnel 隧道（常被滥用于 C2/外带）",
+    "pagekite.me": "pagekite 隧道（常被滥用于 C2/外带）",
+    "portmap.io": "portmap 端口映射（常被滥用于 C2/外带）",
+    "telebit.io": "telebit 隧道（常被滥用于 C2/外带）"
+  },
+  "_ip_note": "对端 IP 观察名单（精确匹配），从威胁 feed 导入已知 C2/恶意服务端 IP。示例留空，按需填入。",
+  "ip": {}
+}

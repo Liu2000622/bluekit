@@ -1,5 +1,7 @@
 """WebShell 流量(pcap)分析适配层 —— 集成 Webshell_traffic_analysis_tool 引擎。
 
+引擎 vendored 于 vendor/webshell_traffic/wsat/（封装为 `wsat` 包，其内部绝对
+import 已改写为 wsat.* 前缀，与 BlueKit 自身的 core/ 包命名空间隔离）。
 该引擎依赖 scapy / pycryptodome(Crypto) / openpyxl（非纯标准库）。因此本 Tab
 在缺少依赖时优雅降级：只提示，不影响其它纯标准库 Tab。打包版会内置这些依赖。
 """
@@ -29,7 +31,7 @@ def available() -> tuple[bool, str]:
     if missing:
         return False, "缺少依赖：" + " ".join(missing) + "  (pip install " + " ".join(missing) + ")"
     try:
-        import auto_analyzer  # noqa: F401
+        from wsat.core import auto_analyzer  # noqa: F401
     except Exception as e:  # noqa: BLE001
         return False, f"引擎导入失败: {e}"
     return True, ""
@@ -39,7 +41,7 @@ def analyze(pcap: str, out_xlsx: str | None = None,
             keys: list[str] | None = None, weak_dict: bool = True):
     """跑全自动分析，返回 (result, log_lines)。"""
     _ensure_path()
-    import auto_analyzer
+    from wsat.core import auto_analyzer
     log: list[str] = []
     result = auto_analyzer.analyze_pcap_auto(
         pcap, out_xlsx, keys=keys, weak_dict=weak_dict,
@@ -56,13 +58,13 @@ def manual_decrypt(tool: str, payload: str, key: str = "", crypter: str = "") ->
     """手动载荷解密（原版同源函数）。tool: suo5 / godzilla / behinder。"""
     _ensure_path()
     if tool == "suo5":
-        from decrypt_suo5_payload import decrypt_hex_string
+        from wsat.webshell.decrypt_suo5_payload import decrypt_hex_string
         return decrypt_hex_string(payload)
     if tool == "godzilla":
-        from decrypt_godzilla_payload import godzilla_decode
+        from wsat.webshell.decrypt_godzilla_payload import godzilla_decode
         return godzilla_decode(payload, key, crypter)
     if tool == "behinder":
-        from decrypt_behinder_payload import behinder_decode
+        from wsat.webshell.decrypt_behinder_payload import behinder_decode
         return behinder_decode(payload.strip(), key or "rebeyond")
     raise ValueError(f"未知工具: {tool}")
 
@@ -74,14 +76,14 @@ def pcap_analyze(tool: str, input_path: str, output_path: str,
     log: list[str] = []
     cb = lambda m: log.append(str(m))  # noqa: E731
     if tool == "suo5":
-        from suo5_full_analyzer import process_pcap_to_excel
+        from wsat.webshell.suo5_full_analyzer import process_pcap_to_excel
         res = process_pcap_to_excel(input_path, output_path, status_callback=cb)
     elif tool == "godzilla":
-        from godzilla_pcap_analyzer import process_godzilla_pcap
+        from wsat.webshell.godzilla_pcap_analyzer import process_godzilla_pcap
         res = process_godzilla_pcap(input_path, output_path, key,
                                     crypter=crypter, status_callback=cb)
     elif tool == "behinder":
-        from behinder_pcap_analyzer import process_behinder_pcap
+        from wsat.webshell.behinder_pcap_analyzer import process_behinder_pcap
         res = process_behinder_pcap(input_path, output_path, password,
                                     status_callback=cb)
     else:
